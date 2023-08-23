@@ -1,5 +1,13 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget, QWidget, QGridLayout, QLabel
+from PyQt5.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QTabWidget,
+    QWidget,
+    QGridLayout,
+    QLabel,
+)
+
 
 class TabbedWindow(QMainWindow):
     def __init__(self):
@@ -51,9 +59,9 @@ class TabbedWindow(QMainWindow):
         # Set the layout for the second tab
         self.tab2.setLayout(layout2)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = TabbedWindow()
     window.show()
     sys.exit(app.exec_())
-
