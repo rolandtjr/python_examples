@@ -3,7 +3,7 @@
 import unittest
 from io import StringIO
 from unittest.mock import patch
-import print_things  # import the module containing the function with print statements
+import print_things 
 
 
 class TestPrintFunction(unittest.TestCase):

@@ -2,13 +2,13 @@
 """
 Generate and Print Random Unicode Characters
 
-This module generates a string of random Unicode characters, specifically avoiding the
-surrogate pair range (0xD800 to 0xDFFF). The generated string has a default length of
-5000 characters.
+This module generates a string of random Unicode characters, specifically
+avoiding the surrogate pair range (0xD800 to 0xDFFF). The generated string has
+a default length of 5000 characters.
 
 Usage:
-    Run the script with an argument to specify the length of the string to be generated:
-    `python script_name.py 5000`
+    Run the script with an argument to specify the length of the string to be
+    generated: `python script_name.py 5000`
 """
 import random
 from argparse import ArgumentParser
@@ -21,7 +21,11 @@ def generate_string(length):
             [
                 chr(
                     random.choice(
-                        [i for i in range(0x0, 0xD7FF + 1) if i < 0xD800 or i > 0xDFFF]
+                        [
+                            i
+                            for i in range(0x0, 0xD7FF + 1)
+                            if i < 0xD800 or i > 0xDFFF
+                        ]
                     )
                 )
                 for _ in range(length)
@@ -30,7 +34,7 @@ def generate_string(length):
     except UnicodeEncodeError as e:
         print(f"Error encoding character: {e}")
 
-    return(characters)
+    return characters
 
 
 if __name__ == "__main__":
