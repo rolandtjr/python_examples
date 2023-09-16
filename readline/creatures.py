@@ -1,5 +1,6 @@
 #!/usr/bin/env
-"""
+"""creatures.py
+----------------
 This module implements a simple console application to manage a list of creatures.
 It provides functionalities to add a creature to the list, lookup creatures with 
 autocomplete support (press tab to auto-complete creature names), and quit the 

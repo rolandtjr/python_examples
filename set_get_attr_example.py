@@ -1,5 +1,5 @@
-"""
-set_get_attr_example.py
+# /usr/bin/env python3
+"""set_get_attr_example.py
 -----------------------
 
 This module contains a class named `Number` which implements special attribute
@@ -31,6 +31,7 @@ Note:
   `number.num` and `number.number` (which are non-existing attributes) are accessed,
   but the `_number` value is printed instead of raising an AttributeError.
 """
+
 
 class Number:
     def __init__(self, number):
@@ -65,6 +66,7 @@ class Number:
 
     def __getattr__(self, name):
         return self._number
+
 
 if __name__ == "__main__":
     number = Number(5)

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""
+"""pyqt_tabs.py
+----------------
 This module contains a Python script utilizing the PyQt5 library to create a
 basic graphical user interface (GUI) application. The application showcases a
 tabbed window with two tabs, each containing a grid of numbers. The first tab

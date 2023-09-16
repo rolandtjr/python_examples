@@ -1,4 +1,5 @@
-"""
+"""email_example.py
+----------------
 This module sends an email with the contents of a specified text file as the 
 body. The "smtplib" and "email.message" modules are used to construct and send 
 the email.

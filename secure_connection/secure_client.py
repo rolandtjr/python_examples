@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""
+"""secure_client.py
+----------------
 A module to establish a non-verifying SSL connection with a server and to 
 send/receive messages through a secure socket.
 
@@ -21,10 +22,10 @@ def main(server_address: str, server_port: int):
     context = SSLContext(PROTOCOL_TLS_CLIENT)
     context.check_hostname = False
     context.verify_mode = CERT_NONE
-    unsecure_socket: socket = create_connection(
-        (server_address, server_port)
-    )
-    secure_socket = context.wrap_socket(unsecure_socket) #, server_hostname="localhost")
+    unsecure_socket: socket = create_connection((server_address, server_port))
+    secure_socket = context.wrap_socket(
+        unsecure_socket
+    )  # , server_hostname="localhost")
 
     while True:
         message = input()

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""crypto_server.py
+"""generate_server_keys.py
 ----------------
 
 This module contains utilities for generating and storing server keys and

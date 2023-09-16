@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""bcrypt_test.py
+"""bcrypt_test_db.py
 This module provides utilities for user authentication, including functions to
 store hashed passwords, create new users, and authenticate existing users using
 bcrypt for password hashing and a sqlite database to store user data.

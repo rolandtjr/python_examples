@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""
+"""thread_pool.py
+----------------
 This module demonstrates the use of asyncio to handle asynchronous and blocking
 functions in Python. The module contains three functions: a blocking function
 that simulates a long-running process with `time.sleep`, an asynchronous

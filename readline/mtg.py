@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""
+"""mtg.py
+----------------
 This module defines a command-line interface (CLI) application which allows
 users to interact with a predefined list of completion options, specifically,
 card names from the "Alara Reborn" set.

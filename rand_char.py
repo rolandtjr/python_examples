@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""
+"""rand_char.py
+----------------
 Generate and Print Random Unicode Characters
 
 This module generates a string of random Unicode characters, specifically

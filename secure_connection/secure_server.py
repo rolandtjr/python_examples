@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""
+"""secure_server.py
+----------------
 This module facilitates creating an asynchronous SSL server that echoes
 received messages. The server operates using SSL certificates stored in 
 the "server_keys" directory.
