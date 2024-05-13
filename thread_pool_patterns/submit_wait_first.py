@@ -5,8 +5,9 @@ from concurrent.futures import ThreadPoolExecutor, Future, wait, FIRST_COMPLETED
 
 results: list[int] = []
 
+
 def add_one(number: int) -> int:
-    sleep(randint(0,2))
+    sleep(randint(0, 2))
     return number + 1
 
 

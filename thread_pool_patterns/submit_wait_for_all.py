@@ -5,9 +5,10 @@ from concurrent.futures import ThreadPoolExecutor, wait, Future
 
 results: list[int] = []
 
+
 def add_one(number: int) -> int:
     print(number)
-    sleep(randint(0,2))
+    sleep(randint(0, 2))
     return number + 1
 
 
@@ -28,7 +29,9 @@ def main() -> None:
     print("All done!")
 
     with ThreadPoolExecutor() as executor:
-        futures: list[Future] = [executor.submit(add_one, number) for number in range(10)]
+        futures: list[Future] = [
+            executor.submit(add_one, number) for number in range(10)
+        ]
     print("Done waiting!")
     for future in futures:
         print(future.result())

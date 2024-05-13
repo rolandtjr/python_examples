@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def add_one(number):
     print(number)
-    sleep(randint(0,2))
+    sleep(randint(0, 2))
     return number + 1
 
 
