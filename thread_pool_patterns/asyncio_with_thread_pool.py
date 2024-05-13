@@ -15,7 +15,8 @@ import time
 
 
 def blocking_function():
-    time.sleep(2)
+    print("Blocking function started!")
+    time.sleep(5)
     return "Blocking function completed!"
 
 
@@ -29,7 +30,7 @@ async def main():
     loop = asyncio.get_event_loop()
     executor = ThreadPoolExecutor()
 
-    async_task = asyncio.create_task(async_function())
+    async_task = loop.create_task(async_function())
 
     result = await loop.run_in_executor(executor, blocking_function)
     print(result)
@@ -38,4 +39,6 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    loop = asyncio.get_event_loop()
+    main_task = loop.create_task(main())
+    loop.run_until_complete(main_task)
