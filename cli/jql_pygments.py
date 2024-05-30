@@ -1,3 +1,4 @@
+import pygments
 from pygments.lexer import RegexLexer, include
 from pygments.token import Text, Keyword, Operator, Punctuation, Name, String, Whitespace
 from prompt_toolkit import PromptSession
@@ -36,14 +37,14 @@ class JQLLexer(RegexLexer):
     }
 
 nord_style = Style.from_dict({
-    'whitespace': '#FFFFFF',
-    'operator': '#B48EAD',
-    'keyword': '#81A1C1 bold',
-    'punctuation': '#BF616A',
-    # 'name.attribute': '#A3BE8C',
-    # 'name.function': '#B48EAD',
-    'string': '#EBCB8B',
-    'text': '#D8DEE9',
+    'pygments.whitespace': '#FFFFFF',
+    'pygments.operator': '#B48EAD',
+    'pygments.keyword': '#81A1C1 bold',
+    'pygments.punctuation': '#BF616A',
+    'pygments.name.attribute': '#A3BE8C',
+    'pygments.name.function': '#B48EAD',
+    'pygments.string': '#EBCB8B',
+    'pygments.text': '#D8DEE9',
 })
 
 completions = [
