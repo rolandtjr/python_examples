@@ -83,32 +83,31 @@ class Forge:
         print(f"Fast tasks: {self.fast_task_count}")
         print(f"Slow tasks: {self.slow_task_count}")
         print(f"Total tasks: {self.total_tasks}")
-        with patch_stdout():
-            with ProgressBar(
+        with patch_stdout(), ProgressBar(
                 title="Forge",
                 formatters=custom_formatters,
                 style=style,
                 bottom_toolbar=get_toolbar,
                 key_bindings=self.kb,
-            ) as pb:
-                task_progress = pb(range(self.total_tasks), label="Tasks")
-                slow_progress = pb(range(self.slow_task_count), label="Slow tasks")
-                for _ in range(self.slow_task_count):
-                    slow_tasks.append(asyncio.create_task(self.slow_task()))
+                ) as pb:
+            task_progress = pb(range(self.total_tasks), label="Tasks")
+            slow_progress = pb(range(self.slow_task_count), label="Slow tasks")
+            for _ in range(self.slow_task_count):
+                slow_tasks.append(asyncio.create_task(self.slow_task()))
 
-                fast_progress = pb(range(self.fast_task_count), label="Fast tasks")
-                for _ in range(self.fast_task_count):
-                    fast_tasks.append(asyncio.create_task(self.fast_task()))
+            fast_progress = pb(range(self.fast_task_count), label="Fast tasks")
+            for _ in range(self.fast_task_count):
+                fast_tasks.append(asyncio.create_task(self.fast_task()))
 
-                while not (fast_progress.done and slow_progress.done):
-                    await asyncio.sleep(0.1)
-                    slow_progress.items_completed = self.slow_tasks_done
-                    fast_progress.items_completed = self.fast_tasks_done
-                    task_progress.items_completed = self.slow_tasks_done + self.fast_tasks_done
-                    if self.fast_tasks_done == self.fast_task_count:
-                        fast_progress.done = True
-                    if self.slow_tasks_done == self.slow_task_count:
-                        slow_progress.done = True
+            while not (fast_progress.done and slow_progress.done):
+                await asyncio.sleep(0.1)
+                slow_progress.items_completed = self.slow_tasks_done
+                fast_progress.items_completed = self.fast_tasks_done
+                task_progress.items_completed = self.slow_tasks_done + self.fast_tasks_done
+                if self.fast_tasks_done == self.fast_task_count:
+                    fast_progress.done = True
+                if self.slow_tasks_done == self.slow_task_count:
+                    slow_progress.done = True
 
         result = await confirm("Do you want to print the data?")
 

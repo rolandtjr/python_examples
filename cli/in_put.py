@@ -10,16 +10,16 @@ from prompt_toolkit.styles import Style
 
 style = Style.from_dict(
     {
-        "title": "#D08770 underline",
+        "title": "#FF8400 underline",
         "label": "#D8DEE9 bold",
-        "percentage": "#D08770",
-        "bar-a": "bg:#D08770 #D08770",
-        "bar-b": "bg:#D08770 #2E3440",
+        "percentage": "#FF8400",
+        "bar-a": "bg:#FF8400 #FF8400",
+        "bar-b": "bg:#FF8400 #2E3440",
         "bar-c": "#D8DEE9",
         "current": "#D8DEE9",
-        "total": "#D08770",
+        "total": "#FF8400",
         "time-elapsed": "#D8DEE9",
-        "time-left": "#D08770",
+        "time-left": "#FF8400",
     }
 )
 

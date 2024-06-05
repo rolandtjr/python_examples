@@ -38,12 +38,12 @@ class JQLLexer(RegexLexer):
 
 nord_style = Style.from_dict({
     'pygments.whitespace': '#FFFFFF',
-    'pygments.operator': '#B48EAD',
+    'pygments.operator': '#EBCB8B',
     'pygments.keyword': '#81A1C1 bold',
     'pygments.punctuation': '#BF616A',
     'pygments.name.attribute': '#A3BE8C',
     'pygments.name.function': '#B48EAD',
-    'pygments.string': '#EBCB8B',
+    'pygments.string': '#D8DEE9',
     'pygments.text': '#D8DEE9',
 })
 
