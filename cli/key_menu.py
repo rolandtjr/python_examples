@@ -1,6 +1,7 @@
 from prompt_toolkit.key_binding import KeyBindings, merge_key_bindings
 from prompt_toolkit.key_binding.bindings.basic import load_basic_bindings
 from prompt_toolkit.shortcuts import prompt, PromptSession
+from prompt_toolkit.validation import Validator
 from rich.table import Table
 from rich.console import Console
 
@@ -28,6 +29,20 @@ bindings_info = [
     {"Key": "Ctrl-M", "Action": "Open the menu"},
 ]
 
+def is_y_n(text):
+    return text in ["y", "n", "Y", "N", ""]
+
+yes_no_validator = Validator.from_callable(
+    is_y_n,
+    error_message="Please enter 'y' or 'n'",
+    move_cursor_to_end=True,
+)
+
+def confirm(message: str = "Confirm?", suffix: str = " (y/n) \u276f ") -> bool:
+    result = prompt(f"{message}{suffix}", validator=yes_no_validator)
+    return result.lower() == "y" or result == ""
+
+
 console = Console()
 
 
@@ -44,12 +59,18 @@ def show_keybindings_menu():
 
 
 def main_menu():
-    session = PromptSession("> ", key_bindings=keybindings)
+    session = PromptSession("\u276f ", key_bindings=keybindings)
     while True:
         show_keybindings_menu()
 
         user_input = session.prompt()
         console.print(f"You entered: {user_input}")
+
+        result = confirm("Do you want to continue?")
+
+        if not result:
+            break
+
 
 
 if __name__ == "__main__":
