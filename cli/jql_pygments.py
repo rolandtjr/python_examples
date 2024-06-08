@@ -14,7 +14,7 @@ from pygments.token import (
 from prompt_toolkit import PromptSession
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
-from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.validation import Validator, ValidationError
 from rich.console import Console
 from rich.text import Text as RichText
@@ -52,6 +52,10 @@ class JQLLexer(RegexLexer):
             ),
             (r"(?i)(=|!=|<|>|<=|>=|~|!~|IN|NOT IN|IS|IS NOT|WAS|WAS IN|WAS NOT IN|WAS NOT)", Operator),
             (r"[\*\(/\^\.@;:+%#\[\|\?\),\$]", Punctuation),
+            (
+                r"(?i)\b(?:QUANTUM|NEBULA|GALACTIC|STELLAR|AETHER|NOVA|COSMIC|LUNAR|ASTRAL|PHOTON)\b",
+                Name.Other,
+            ),
             (r"[\w\.\-]+", Text),
         ],
         "string": [
@@ -72,6 +76,8 @@ nord_style = Style.from_dict(
         "pygments.name.function": "#A3BE8C",
         "pygments.literal.string": "#D08770",
         "pygments.text": "#D8DEE9",
+        "pygments.name.other": "#D08770",
+        "pygments.error": "#BF616A bold",
     }
 )
 
@@ -86,86 +92,133 @@ token_styles = {
     String: "#D08770",
     Text: "#D8DEE9",
     Error: "#BF616A bold",
+    Name.Other: "#D08770",
 }
 
 
-completions = [
-    "assignee",
-    "affectedVersion",
-    "attachments",
-    "comment",
-    "component",
-    "created",
-    "creator",
-    "description",
-    "due",
-    "duedate",
-    "filter",
-    "fixVersion",
-    "issuekey",
-    "labels",
-    "lastViewed",
-    "priority",
-    "project",
-    "reporter",
-    "resolved",
-    "sprint",
-    "status",
-    "statusCategory",
-    "summary",
-    "text",
-    "timespent",
-    "voter",
-    "watcher",
-    "A",
-    "AND",
-    "ARE",
-    "AS",
-    "AT",
-    "BE",
-    "BUT",
-    "BY",
-    "FOR",
-    "IF",
-    "INTO",
-    "IT",
-    "NO",
-    "NOT",
-    "OF",
-    "ON",
-    "OR",
-    "S",
-    "SUCH",
-    "T",
-    "THAT",
-    "THE",
-    "THEIR",
-    "THEN",
-    "THERE",
-    "THESE",
-    "THEY",
-    "THIS",
-    "TO",
-    "WILL",
-    "WITH",
-    "issueHistory",
-    "watchedIssues",
-    "myApproval",
-    "myPending",
-    "currentLogin",
-    "currentUser",
-    "membersOf",
-    "lastLogin",
-    "now",
-    "startOfDay",
-    "endOfDay",
-    "startOfWeek",
-    "endOfWeek",
-    "startOfMonth",
-    "endOfMonth",
-    "startOfYear",
-    "endOfYear",
-]
+completion_styles = {
+    "Keywords": "#81A1C1 bold",
+    "Functions": "#A3BE8C",
+    "Attributes": "#B48EAD",
+    "Operators": "#EBCB8B bold",
+    "Projects": "#D08770",
+}
+
+
+completions = {
+    "Keywords": [
+        "A",
+        "AND",
+        "ARE",
+        "AS",
+        "AT",
+        "BE",
+        "BUT",
+        "BY",
+        "FOR",
+        "IF",
+        "INTO",
+        "IT",
+        "NO",
+        "NOT",
+        "OF",
+        "ON",
+        "OR",
+        "S",
+        "SUCH",
+        "T",
+        "THAT",
+        "THE",
+        "THEIR",
+        "THEN",
+        "THERE",
+        "THESE",
+        "THEY",
+        "THIS",
+        "TO",
+        "WILL",
+        "WITH",
+    ],
+    "Functions": [
+        "issueHistory",
+        "openSprints",
+        "watchedIssues",
+        "myApproval",
+        "myPending",
+        "currentLogin",
+        "currentUser",
+        "membersOf",
+        "lastLogin",
+        "now",
+        "startOfDay",
+        "endOfDay",
+        "startOfWeek",
+        "endOfWeek",
+        "startOfMonth",
+        "endOfMonth",
+        "startOfYear",
+        "endOfYear",
+    ],
+    "Attributes": [
+        "assignee",
+        "affectedVersion",
+        "attachments",
+        "comment",
+        "component",
+        "created",
+        "creator",
+        "description",
+        "due",
+        "duedate",
+        "filter",
+        "fixVersion",
+        "issuekey",
+        "labels",
+        "lastViewed",
+        "priority",
+        "project",
+        "reporter",
+        "resolved",
+        "sprint",
+        "status",
+        "statusCategory",
+        "summary",
+        "text",
+        "timespent",
+        "voter",
+        "watcher",
+    ],
+    "Operators": [
+        "=",
+        "!=",
+        "<",
+        ">",
+        "<=",
+        ">=",
+        "~",
+        "!~",
+        "IN",
+        "NOT IN",
+        "IS",
+        "IS NOT",
+        "WAS",
+        "WAS IN",
+        "WAS NOT IN",
+        "WAS NOT",
+    ],
+    "Projects": [
+        "QUANTUM",
+        "NEBULA",
+        "GALACTIC",
+        "STELLAR",
+        "AETHER",
+        "NOVA",
+        "COSMIC",
+        "LUNAR",
+        "ASTRAL",
+        "PHOTON",
+    ],
+}
 
 
 class JQLPrinter:
@@ -173,7 +226,7 @@ class JQLPrinter:
         self.console = console
 
     def print(self, text: str):
-        self.console.print(self.pygments_to_rich(text))
+        self.console.print(self.pygments_to_rich(text), end="")
 
     def pygments_to_rich(self, text):
         tokens = list(JQLLexer().get_tokens(text))
@@ -199,24 +252,67 @@ class JQLValidator(Validator):
             raise ValidationError(message=f"[!] {error_text}", cursor_position=len(text))
 
 
-def create_jira_prompt_session(jira):
-    completer = WordCompleter(completions, ignore_case=True)
+class JQLCompleter(Completer):
+    """Custom JQL completer to categorize and color completions."""
+
+    def __init__(self, categorized_completions):
+        self.categorized_completions = categorized_completions
+
+    def get_completions(self, document, complete_event):
+        text = document.get_word_before_cursor().lower()
+        for category, words in self.categorized_completions.items():
+            for word in words:
+                if text in word.lower():
+                    display_text = f"{word}"
+                    yield Completion(
+                        word,
+                        start_position=-len(text),
+                        display=display_text,
+                        display_meta=category,
+                        style=f"fg: #D8DEE9 bg: {completion_styles.get(category, 'white')}",
+                        selected_style=f"fg: {completion_styles.get(category, 'white')} bg: #D8DEE9",
+                    )
+
+
+query_count = 0
+
+
+def get_query_count():
+    return [("class:bottom-toolbar", f"Query count: {query_count}")]
+
+
+def create_jql_prompt_session(jira):
+    completer = JQLCompleter(completions)
     return PromptSession(
         lexer=PygmentsLexer(JQLLexer),
         style=nord_style,
         completer=completer,
         validator=JQLValidator(jira),
         rprompt="[b] Back [exit] Exit",
+        bottom_toolbar=get_query_count,
     )
 
-with open("config.json") as json_file:
-    config = json.load(json_file)
+
+def load_config():
+    with open("config.json") as json_file:
+        try:
+            with open("config.json") as json_file:
+                return json.load(json_file)
+        except FileNotFoundError:
+            print("Configuration file not found.")
+            exit(1)
+        except json.JSONDecodeError:
+            print("Error decoding configuration file.")
+            exit(1)
+
 
 def main():
+    global query_count
+    config = load_config()
     console = Console(color_system="truecolor")
     jira = JIRA(server=config["server"], basic_auth=(config["username"], config["token"]))
     jql = JQLPrinter(console)
-    session = create_jira_prompt_session(jira)
+    session = create_jql_prompt_session(jira)
     while True:
         try:
             user_input = session.prompt("Enter JQL: ", validate_while_typing=False)
@@ -224,7 +320,19 @@ def main():
                 continue
             if user_input.lower() == "exit":
                 break
-            jql.print(user_input)
+            issues = jira.search_issues(user_input)
+            if issues:
+                query_count += 1
+                console.print(
+                    RichText.assemble(
+                        (f"[+] Found {len(issues)} issues from JQL query: ", "green bold"),
+                        jql.pygments_to_rich(user_input),
+                    ),
+                    end="",
+                )
+                for issue in issues:
+                    console.print(f"{issue.key}: {issue.fields.summary}")
+
         except KeyboardInterrupt:
             continue
         except EOFError:
