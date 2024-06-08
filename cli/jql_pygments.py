@@ -47,7 +47,7 @@ class JQLLexer(RegexLexer):
                 r"(?i)\b(?:Assignee|affectedVersion|Attachments|Category|Comment|Component|Created|createdDate|"
                 r"Creator|Description|Due|duedate|Filter|fixVersion|issuekey|issuetype|issueLinkType|Labels|"
                 r"lastViewed|Priority|Project|Reporter|Resolved|Sprint|Status|statusCategory|Summary|Text|"
-                r"timespent|Voter|Watcher|affectedVersion)\b",
+                r"timespent|Voter|Watcher)\b",
                 Name.Attribute,
             ),
             (r"(?i)(=|!=|<|>|<=|>=|~|!~|IN|NOT IN|IS|IS NOT|WAS|WAS IN|WAS NOT IN|WAS NOT)", Operator),
@@ -105,120 +105,120 @@ completion_styles = {
 }
 
 
-completions = {
-    "Keywords": [
-        "A",
-        "AND",
-        "ARE",
-        "AS",
-        "AT",
-        "BE",
-        "BUT",
-        "BY",
-        "FOR",
-        "IF",
-        "INTO",
-        "IT",
-        "NO",
-        "NOT",
-        "OF",
-        "ON",
-        "OR",
-        "S",
-        "SUCH",
-        "T",
-        "THAT",
-        "THE",
-        "THEIR",
-        "THEN",
-        "THERE",
-        "THESE",
-        "THEY",
-        "THIS",
-        "TO",
-        "WILL",
-        "WITH",
-    ],
-    "Functions": [
-        "issueHistory",
-        "openSprints",
-        "watchedIssues",
-        "myApproval",
-        "myPending",
-        "currentLogin",
-        "currentUser",
-        "membersOf",
-        "lastLogin",
-        "now",
-        "startOfDay",
-        "endOfDay",
-        "startOfWeek",
-        "endOfWeek",
-        "startOfMonth",
-        "endOfMonth",
-        "startOfYear",
-        "endOfYear",
-    ],
-    "Attributes": [
-        "assignee",
-        "affectedVersion",
-        "attachments",
-        "comment",
-        "component",
-        "created",
-        "creator",
-        "description",
-        "due",
-        "duedate",
-        "filter",
-        "fixVersion",
-        "issuekey",
-        "labels",
-        "lastViewed",
-        "priority",
-        "project",
-        "reporter",
-        "resolved",
-        "sprint",
-        "status",
-        "statusCategory",
-        "summary",
-        "text",
-        "timespent",
-        "voter",
-        "watcher",
-    ],
-    "Operators": [
-        "=",
-        "!=",
-        "<",
-        ">",
-        "<=",
-        ">=",
-        "~",
-        "!~",
-        "IN",
-        "NOT IN",
-        "IS",
-        "IS NOT",
-        "WAS",
-        "WAS IN",
-        "WAS NOT IN",
-        "WAS NOT",
-    ],
-    "Projects": [
-        "QUANTUM",
-        "NEBULA",
-        "GALACTIC",
-        "STELLAR",
-        "AETHER",
-        "NOVA",
-        "COSMIC",
-        "LUNAR",
-        "ASTRAL",
-        "PHOTON",
-    ],
-}
+completions ={
+            "Keywords": [
+                "A",
+                "AND",
+                "ARE",
+                "AS",
+                "AT",
+                "BE",
+                "BUT",
+                "BY",
+                "FOR",
+                "IF",
+                "INTO",
+                "IT",
+                "NO",
+                "NOT",
+                "OF",
+                "ON",
+                "OR",
+                "S",
+                "SUCH",
+                "T",
+                "THAT",
+                "THE",
+                "THEIR",
+                "THEN",
+                "THERE",
+                "THESE",
+                "THEY",
+                "THIS",
+                "TO",
+                "WILL",
+                "WITH"
+            ],
+            "Functions": [
+                "issueHistory",
+                "openSprints",
+                "watchedIssues",
+                "myApproval",
+                "myPending",
+                "currentLogin",
+                "currentUser",
+                "membersOf",
+                "lastLogin",
+                "now",
+                "startOfDay",
+                "endOfDay",
+                "startOfWeek",
+                "endOfWeek",
+                "startOfMonth",
+                "endOfMonth",
+                "startOfYear",
+                "endOfYear"
+            ],
+            "Attributes": [
+                "assignee",
+                "affectedVersion",
+                "attachments",
+                "comment",
+                "component",
+                "created",
+                "creator",
+                "description",
+                "due",
+                "duedate",
+                "filter",
+                "fixVersion",
+                "issuekey",
+                "labels",
+                "lastViewed",
+                "priority",
+                "project",
+                "reporter",
+                "resolved",
+                "sprint",
+                "status",
+                "statusCategory",
+                "summary",
+                "text",
+                "timespent",
+                "voter",
+                "watcher"
+            ],
+            "Operators": [
+                "=",
+                "!=",
+                "<",
+                ">",
+                "<=",
+                ">=",
+                "~",
+                "!~",
+                "IN",
+                "NOT IN",
+                "IS",
+                "IS NOT",
+                "WAS",
+                "WAS IN",
+                "WAS NOT IN",
+                "WAS NOT"
+            ],
+            "Projects": [
+                "QUANTUM",
+                "NEBULA",
+                "GALACTIC",
+                "STELLAR",
+                "AETHER",
+                "NOVA",
+                "COSMIC",
+                "LUNAR",
+                "ASTRAL",
+                "PHOTON"
+            ]
+        }
 
 
 class JQLPrinter:
@@ -274,25 +274,6 @@ class JQLCompleter(Completer):
                     )
 
 
-query_count = 0
-
-
-def get_query_count():
-    return [("class:bottom-toolbar", f"Query count: {query_count}")]
-
-
-def create_jql_prompt_session(jira):
-    completer = JQLCompleter(completions)
-    return PromptSession(
-        lexer=PygmentsLexer(JQLLexer),
-        style=nord_style,
-        completer=completer,
-        validator=JQLValidator(jira),
-        rprompt="[b] Back [exit] Exit",
-        bottom_toolbar=get_query_count,
-    )
-
-
 def load_config():
     with open("config.json") as json_file:
         try:
@@ -306,38 +287,65 @@ def load_config():
             exit(1)
 
 
+class JQLPrompt:
+    def __init__(self, jira, console):
+        self.jira = jira
+        self.console = console
+        self.session = self.create_jql_prompt_session()
+        self.jql = JQLPrinter(console)
+        self.query_count = 0
+
+    def get_query_count(self):
+        space = self.console.width // 4
+        query_count_str = f"Query count: {self.query_count}"
+        plain_text = f"{query_count_str:^{space}}{query_count_str:^{space}}{query_count_str:^{space}}{query_count_str:^{space}}"
+        return [("bg:#2E3440 #D8DEE9", plain_text)]
+
+    def create_jql_prompt_session(self):
+        completer = JQLCompleter(completions)
+        return PromptSession(
+            lexer=PygmentsLexer(JQLLexer),
+            style=nord_style,
+            completer=completer,
+            validator=JQLValidator(self.jira),
+            rprompt="[b] Back [exit] Exit",
+            bottom_toolbar=self.get_query_count,
+        )
+
+    def get_input(self):
+        user_input = self.session.prompt("Enter JQL: ", validate_while_typing=False)
+        if user_input.lower() == "b":
+            return
+        if user_input.lower() == "exit":
+            exit(0)
+        issues = self.jira.search_issues(user_input)
+        if issues:
+            self.query_count += 1
+            self.console.print(
+                RichText.assemble(
+                    (f"[+] Found {len(issues)} issues from JQL query: ", "green bold"),
+                    self.jql.pygments_to_rich(user_input),
+                ),
+                end="",
+            )
+            for issue in issues:
+                self.console.print(f"{issue.key}: {issue.fields.summary}")
+
+    def run(self):
+        while True:
+            try:
+                self.get_input()
+            except (EOFError, KeyboardInterrupt):
+                break
+        self.console.print("Goodbye!", style="#BF616A bold")
+
+
 def main():
-    global query_count
     config = load_config()
     console = Console(color_system="truecolor")
     jira = JIRA(server=config["server"], basic_auth=(config["username"], config["token"]))
-    jql = JQLPrinter(console)
-    session = create_jql_prompt_session(jira)
-    while True:
-        try:
-            user_input = session.prompt("Enter JQL: ", validate_while_typing=False)
-            if user_input.lower() == "b":
-                continue
-            if user_input.lower() == "exit":
-                break
-            issues = jira.search_issues(user_input)
-            if issues:
-                query_count += 1
-                console.print(
-                    RichText.assemble(
-                        (f"[+] Found {len(issues)} issues from JQL query: ", "green bold"),
-                        jql.pygments_to_rich(user_input),
-                    ),
-                    end="",
-                )
-                for issue in issues:
-                    console.print(f"{issue.key}: {issue.fields.summary}")
-
-        except KeyboardInterrupt:
-            continue
-        except EOFError:
-            break
-    console.print("Goodbye!", style="#BF616A bold")
+    prompt = JQLPrompt(jira, console)
+    prompt.run()
 
 
 if __name__ == "__main__":
