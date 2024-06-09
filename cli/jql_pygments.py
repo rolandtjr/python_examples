@@ -1,25 +1,19 @@
 import json
+from typing import Dict, List
 
-from pygments.lexer import RegexLexer
-from pygments.token import (
-    Text,
-    Keyword,
-    Operator,
-    Punctuation,
-    Name,
-    String,
-    Whitespace,
-    Error,
-)
-from prompt_toolkit import PromptSession
-from prompt_toolkit.lexers import PygmentsLexer
-from prompt_toolkit.styles import Style
-from prompt_toolkit.completion import Completer, Completion
-from prompt_toolkit.validation import Validator, ValidationError
-from rich.console import Console
-from rich.text import Text as RichText
 from jira import JIRA
 from jira.exceptions import JIRAError
+from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.lexers import PygmentsLexer
+from prompt_toolkit.styles import Style
+from prompt_toolkit.validation import ValidationError, Validator
+from prompt_toolkit.shortcuts import confirm
+from pygments.lexer import RegexLexer
+from pygments.token import Error, Keyword, Name, Operator, Punctuation, String, Text, Whitespace, _TokenType
+
+from rich.console import Console
+from rich.text import Text as RichText
 
 
 class JQLLexer(RegexLexer):
@@ -66,159 +60,158 @@ class JQLLexer(RegexLexer):
     }
 
 
-nord_style = Style.from_dict(
-    {
-        "pygments.whitespace": "#FFFFFF",
-        "pygments.keyword": "#81A1C1 bold",
-        "pygments.operator": "#EBCB8B bold",
-        "pygments.punctuation": "#BF616A",
-        "pygments.name.attribute": "#B48EAD",
-        "pygments.name.function": "#A3BE8C",
-        "pygments.literal.string": "#D08770",
-        "pygments.text": "#D8DEE9",
-        "pygments.name.other": "#D08770",
-        "pygments.error": "#BF616A bold",
-    }
-)
-
-
-token_styles = {
-    Whitespace: "#FFFFFF",
-    Keyword: "#81A1C1 bold",
-    Operator: "#EBCB8B bold",
-    Punctuation: "#BF616A",
-    Name.Attribute: "#B48EAD",
-    Name.Function: "#A3BE8C",
-    String: "#D08770",
-    Text: "#D8DEE9",
-    Error: "#BF616A bold",
-    Name.Other: "#D08770",
-}
-
-
-completion_styles = {
-    "Keywords": "#81A1C1 bold",
-    "Functions": "#A3BE8C",
-    "Attributes": "#B48EAD",
-    "Operators": "#EBCB8B bold",
-    "Projects": "#D08770",
-}
-
-
-completions ={
-            "Keywords": [
-                "A",
-                "AND",
-                "ARE",
-                "AS",
-                "AT",
-                "BE",
-                "BUT",
-                "BY",
-                "FOR",
-                "IF",
-                "INTO",
-                "IT",
-                "NO",
-                "NOT",
-                "OF",
-                "ON",
-                "OR",
-                "S",
-                "SUCH",
-                "T",
-                "THAT",
-                "THE",
-                "THEIR",
-                "THEN",
-                "THERE",
-                "THESE",
-                "THEY",
-                "THIS",
-                "TO",
-                "WILL",
-                "WITH"
-            ],
-            "Functions": [
-                "issueHistory",
-                "openSprints",
-                "watchedIssues",
-                "myApproval",
-                "myPending",
-                "currentLogin",
-                "currentUser",
-                "membersOf",
-                "lastLogin",
-                "now",
-                "startOfDay",
-                "endOfDay",
-                "startOfWeek",
-                "endOfWeek",
-                "startOfMonth",
-                "endOfMonth",
-                "startOfYear",
-                "endOfYear"
-            ],
-            "Attributes": [
-                "assignee",
-                "affectedVersion",
-                "attachments",
-                "comment",
-                "component",
-                "created",
-                "creator",
-                "description",
-                "due",
-                "duedate",
-                "filter",
-                "fixVersion",
-                "issuekey",
-                "labels",
-                "lastViewed",
-                "priority",
-                "project",
-                "reporter",
-                "resolved",
-                "sprint",
-                "status",
-                "statusCategory",
-                "summary",
-                "text",
-                "timespent",
-                "voter",
-                "watcher"
-            ],
-            "Operators": [
-                "=",
-                "!=",
-                "<",
-                ">",
-                "<=",
-                ">=",
-                "~",
-                "!~",
-                "IN",
-                "NOT IN",
-                "IS",
-                "IS NOT",
-                "WAS",
-                "WAS IN",
-                "WAS NOT IN",
-                "WAS NOT"
-            ],
-            "Projects": [
-                "QUANTUM",
-                "NEBULA",
-                "GALACTIC",
-                "STELLAR",
-                "AETHER",
-                "NOVA",
-                "COSMIC",
-                "LUNAR",
-                "ASTRAL",
-                "PHOTON"
-            ]
+class JQLStyles:
+    nord: Style = Style.from_dict(
+        {
+            "pygments.whitespace": "#FFFFFF",
+            "pygments.keyword": "#81A1C1 bold",
+            "pygments.operator": "#EBCB8B bold",
+            "pygments.punctuation": "#BF616A",
+            "pygments.name.attribute": "#B48EAD",
+            "pygments.name.function": "#A3BE8C",
+            "pygments.literal.string": "#D08770",
+            "pygments.text": "#D8DEE9",
+            "pygments.name.other": "#D08770",
+            "pygments.error": "#BF616A bold",
         }
+    )
+
+    token: Dict[_TokenType, str] = {
+        Whitespace: "#FFFFFF",
+        Keyword: "#81A1C1 bold",
+        Operator: "#EBCB8B bold",
+        Punctuation: "#BF616A",
+        Name.Attribute: "#B48EAD",
+        Name.Function: "#A3BE8C",
+        String: "#D08770",
+        Text: "#D8DEE9",
+        Error: "#BF616A bold",
+        Name.Other: "#D08770",
+    }
+
+    completion: Dict[str, str] = {
+        "Keywords": "#81A1C1 bold",
+        "Functions": "#A3BE8C",
+        "Attributes": "#B48EAD",
+        "Operators": "#EBCB8B bold",
+        "Projects": "#D08770",
+    }
+
+
+completions: Dict[str, List[str]] = {
+    "Keywords": [
+        "A",
+        "AND",
+        "ARE",
+        "AS",
+        "AT",
+        "BE",
+        "BUT",
+        "BY",
+        "FOR",
+        "IF",
+        "INTO",
+        "IT",
+        "NO",
+        "NOT",
+        "OF",
+        "ON",
+        "OR",
+        "S",
+        "SUCH",
+        "T",
+        "THAT",
+        "THE",
+        "THEIR",
+        "THEN",
+        "THERE",
+        "THESE",
+        "THEY",
+        "THIS",
+        "TO",
+        "WILL",
+        "WITH",
+    ],
+    "Functions": [
+        "issueHistory",
+        "openSprints",
+        "watchedIssues",
+        "myApproval",
+        "myPending",
+        "currentLogin",
+        "currentUser",
+        "membersOf",
+        "lastLogin",
+        "now",
+        "startOfDay",
+        "endOfDay",
+        "startOfWeek",
+        "endOfWeek",
+        "startOfMonth",
+        "endOfMonth",
+        "startOfYear",
+        "endOfYear",
+    ],
+    "Attributes": [
+        "assignee",
+        "affectedVersion",
+        "attachments",
+        "comment",
+        "component",
+        "created",
+        "creator",
+        "description",
+        "due",
+        "duedate",
+        "filter",
+        "fixVersion",
+        "issuekey",
+        "labels",
+        "lastViewed",
+        "priority",
+        "project",
+        "reporter",
+        "resolved",
+        "sprint",
+        "status",
+        "statusCategory",
+        "summary",
+        "text",
+        "timespent",
+        "voter",
+        "watcher",
+    ],
+    "Operators": [
+        "=",
+        "!=",
+        "<",
+        ">",
+        "<=",
+        ">=",
+        "~",
+        "!~",
+        "IN",
+        "NOT IN",
+        "IS",
+        "IS NOT",
+        "WAS",
+        "WAS IN",
+        "WAS NOT IN",
+        "WAS NOT",
+    ],
+    "Projects": [
+        "QUANTUM",
+        "NEBULA",
+        "GALACTIC",
+        "STELLAR",
+        "AETHER",
+        "NOVA",
+        "COSMIC",
+        "LUNAR",
+        "ASTRAL",
+        "PHOTON",
+    ],
+}
 
 
 class JQLPrinter:
@@ -232,7 +225,7 @@ class JQLPrinter:
         tokens = list(JQLLexer().get_tokens(text))
         rich_text = RichText()
         for token_type, value in tokens:
-            style = token_styles.get(token_type, "white")
+            style = JQLStyles.token.get(token_type, "white")
             rich_text.append(value, style=style)
         return rich_text
 
@@ -269,8 +262,8 @@ class JQLCompleter(Completer):
                         start_position=-len(text),
                         display=display_text,
                         display_meta=category,
-                        style=f"fg: #D8DEE9 bg: {completion_styles.get(category, 'white')}",
-                        selected_style=f"fg: {completion_styles.get(category, 'white')} bg: #D8DEE9",
+                        style=f"fg: #D8DEE9 bg: {JQLStyles.completion.get(category, 'white')}",
+                        selected_style=f"fg: {JQLStyles.completion.get(category, 'white')} bg: #D8DEE9",
                     )
 
 
@@ -304,16 +297,28 @@ class JQLPrompt:
     def create_jql_prompt_session(self):
         completer = JQLCompleter(completions)
         return PromptSession(
+            message=[("#B48EAD", "JQL \u276f ")],
             lexer=PygmentsLexer(JQLLexer),
-            style=nord_style,
+            style=JQLStyles.nord,
             completer=completer,
             validator=JQLValidator(self.jira),
-            rprompt="[b] Back [exit] Exit",
+            rprompt=[
+                ("#5E81AC bold", "[b] Back "),
+                ("#BF616A bold", "[exit] Exit"),
+            ],
             bottom_toolbar=self.get_query_count,
+            validate_while_typing=False,
         )
 
     def get_input(self):
-        user_input = self.session.prompt("Enter JQL: ", validate_while_typing=False)
+        user_input = self.session.prompt()
+        if not user_input:
+            do_empty_query = confirm(
+                [("#EBCB8B bold", "[?] "), ("#D8DEE9 bold", "Do you want to perform an empty query?")],
+                suffix=[("#81A1C1 bold", " (Y/n) ")],
+            )
+            if not do_empty_query:
+                return
         if user_input.lower() == "b":
             return
         if user_input.lower() == "exit":
@@ -338,6 +343,21 @@ class JQLPrompt:
             except (EOFError, KeyboardInterrupt):
                 break
         self.console.print("Goodbye!", style="#BF616A bold")
+
+
+"""
+[+] for additions
+[-] for deletions
+[~] for changes
+[<] for incoming
+[>] for outgoing
+[✔] for success
+[✖] for failure
+[⚠] for warnings
+[?] for questions
+[!] for errors
+[ℹ] for information
+"""
 
 
 def main():
