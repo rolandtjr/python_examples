@@ -1,17 +1,19 @@
 import json
-from typing import Dict, List
+from datetime import datetime
+from typing import Dict, List, Optional
 
 from jira import JIRA
 from jira.exceptions import JIRAError
+from jira.resources import Issue
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.lexers import PygmentsLexer
+from prompt_toolkit.shortcuts import confirm
 from prompt_toolkit.styles import Style
 from prompt_toolkit.validation import ValidationError, Validator
-from prompt_toolkit.shortcuts import confirm
 from pygments.lexer import RegexLexer
-from pygments.token import Error, Keyword, Name, Operator, Punctuation, String, Text, Whitespace, _TokenType
-
+from pygments.token import (Error, Keyword, Name, Operator, Punctuation,
+                            String, Text, Whitespace, _TokenType)
 from rich.console import Console
 from rich.text import Text as RichText
 
@@ -38,10 +40,10 @@ class JQLLexer(RegexLexer):
                 Keyword,
             ),
             (
-                r"(?i)\b(?:Assignee|affectedVersion|Attachments|Category|Comment|Component|Created|createdDate|"
-                r"Creator|Description|Due|duedate|Filter|fixVersion|issuekey|issuetype|issueLinkType|Labels|"
-                r"lastViewed|Priority|Project|Reporter|Resolved|Sprint|Status|statusCategory|Summary|Text|"
-                r"timespent|Voter|Watcher)\b",
+                r"(?i)\b(?:assignee|affectedVersion|attachments|category|comment|component|created|createdDate|"
+                r"creator|cescription|due|duedate|filter|fixVersion|issuekey|issuetype|issueLinkType|labels|"
+                r"lastViewed|priority|project|reporter|resolved|Sprint|status|statusCategory|summary|text|"
+                r"timespent|updated|updatedDate|voter|watcher|watchers)\b",
                 Name.Attribute,
             ),
             (r"(?i)(=|!=|<|>|<=|>=|~|!~|IN|NOT IN|IS|IS NOT|WAS|WAS IN|WAS NOT IN|WAS NOT)", Operator),
@@ -178,6 +180,7 @@ completions: Dict[str, List[str]] = {
         "summary",
         "text",
         "timespent",
+        "updated",
         "voter",
         "watcher",
     ],
@@ -281,21 +284,26 @@ def load_config():
 
 
 class JQLPrompt:
-    def __init__(self, jira, console):
-        self.jira = jira
-        self.console = console
-        self.session = self.create_jql_prompt_session()
-        self.jql = JQLPrinter(console)
-        self.query_count = 0
+    def __init__(self, jira):
+        self.jira: JIRA = jira
+        self.console: Console = Console(color_system="truecolor", record=True)
+        self.session: PromptSession = self.create_jql_prompt_session()
+        self.jql: JQLPrinter = JQLPrinter(self.console)
+        self.query_count: int = 0
+        self.issue_count: int = 0
+        self.total_issue_count: int = 0
+        self.issues: List[Issue] = []
 
     def get_query_count(self):
-        space = self.console.width // 4
-        query_count_str = f"Query count: {self.query_count}"
-        plain_text = f"{query_count_str:^{space}}{query_count_str:^{space}}{query_count_str:^{space}}{query_count_str:^{space}}"
+        space = self.console.width // 3
+        query_count_str = f"Query Count: {self.query_count}" if self.query_count else ""
+        issue_count_str = f"Issues Added: {self.issue_count}" if self.issue_count else ""
+        total_issue_count_str = f"Total Issues: {self.total_issue_count}" if self.total_issue_count else ""
+        plain_text = f"{query_count_str:^{space}}{issue_count_str:^{space}}{total_issue_count_str:^{space}}"
         return [("bg:#2E3440 #D8DEE9", plain_text)]
 
     def create_jql_prompt_session(self):
-        completer = JQLCompleter(completions)
+        completer: JQLCompleter = JQLCompleter(completions)
         return PromptSession(
             message=[("#B48EAD", "JQL \u276f ")],
             lexer=PygmentsLexer(JQLLexer),
@@ -310,8 +318,9 @@ class JQLPrompt:
             validate_while_typing=False,
         )
 
-    def get_input(self):
-        user_input = self.session.prompt()
+    def prompt(self) -> Optional[List[Issue]]:
+        user_input: str = self.session.prompt()
+        self.issue_count = 0
         if not user_input:
             do_empty_query = confirm(
                 [("#EBCB8B bold", "[?] "), ("#D8DEE9 bold", "Do you want to perform an empty query?")],
@@ -328,21 +337,39 @@ class JQLPrompt:
             self.query_count += 1
             self.console.print(
                 RichText.assemble(
-                    (f"[+] Found {len(issues)} issues from JQL query: ", "green bold"),
+                    (f"[+] Found {len(issues)} issues from JQL query: ", "#A3BE8C bold"),
                     self.jql.pygments_to_rich(user_input),
                 ),
                 end="",
             )
-            for issue in issues:
-                self.console.print(f"{issue.key}: {issue.fields.summary}")
+            return issues
+        self.console.print("[!] No issues found.", style="#BF616A bold")
 
-    def run(self):
+    def multi_prompt(self) -> Optional[List[Issue]]:
+        self.issues = []
         while True:
             try:
-                self.get_input()
+                issues = self.prompt()
+                if issues:
+                    issues = [issue for issue in issues if issue not in self.issues]
+                    self.issues.extend(issues)
+                    self.issue_count += len(issues)
+                    self.total_issue_count += len(issues)
+                self.console.print(f"[ℹ] Total issues: {len(self.issues)}", style="#D8DEE9")
+                get_more = confirm([("#A3BE8C", "[?] Get more issues?")], suffix=[("#81A1C1 bold", " (Y/n) ")])
+                if not get_more:
+                    break
             except (EOFError, KeyboardInterrupt):
                 break
-        self.console.print("Goodbye!", style="#BF616A bold")
+        if self.issues:
+            self.console.print(f"[+] {self.total_issue_count} Issues added:", style="#A3BE8C bold")
+            return self.issues
+        self.console.print("[!] No issues added.", style="#BF616A bold")
+
+    def save_log(self):
+        log_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        with open(f"jql_{log_time}.txt", "w") as log_file:
+            log_file.write(self.console.export_text())
 
 
 """
@@ -362,10 +389,9 @@ class JQLPrompt:
 
 def main():
     config = load_config()
-    console = Console(color_system="truecolor")
     jira = JIRA(server=config["server"], basic_auth=(config["username"], config["token"]))
-    prompt = JQLPrompt(jira, console)
-    prompt.run()
+    prompt = JQLPrompt(jira)
+    prompt.multi_prompt()
 
 
 if __name__ == "__main__":
