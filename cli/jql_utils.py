@@ -362,7 +362,7 @@ class JQLPrompt:
             except (EOFError, KeyboardInterrupt):
                 break
         if self.issues:
-            self.console.print(f"[+] {self.total_issue_count} Issues added:", style="#A3BE8C bold")
+            self.console.print(f"[+] Issues added: {self.total_issue_count}", style="#A3BE8C bold")
             return self.issues
         self.console.print("[!] No issues added.", style="#BF616A bold")
 
