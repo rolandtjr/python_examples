@@ -19,6 +19,7 @@ from rich.text import Text as RichText
 
 
 class JQLLexer(RegexLexer):
+    """ JQL Lexer for Pygments. """
     name = "JQL"
     aliases = ["jql"]
     filenames = ["*.jql"]
@@ -63,6 +64,9 @@ class JQLLexer(RegexLexer):
 
 
 class JQLStyles:
+    """ JQL Styles for Pygments.
+    Based on the Nord color palette: https://www.nordtheme.com/docs/colors-and-palettes
+    """
     nord: Style = Style.from_dict(
         {
             "pygments.whitespace": "#FFFFFF",
@@ -218,13 +222,16 @@ completions: Dict[str, List[str]] = {
 
 
 class JQLPrinter:
+    """ JQL Printer to print JQL queries with syntax highlighting. """
     def __init__(self, console: Console):
         self.console = console
 
     def print(self, text: str):
+        """ Print JQL query with syntax highlighting. """
         self.console.print(self.pygments_to_rich(text), end="")
 
     def pygments_to_rich(self, text):
+        """ Convert Pygments tokens to RichText. """
         tokens = list(JQLLexer().get_tokens(text))
         rich_text = RichText()
         for token_type, value in tokens:
@@ -234,10 +241,12 @@ class JQLPrinter:
 
 
 class JQLValidator(Validator):
+    """ JQL Validator to validate JQL queries. """
     def __init__(self, jira_instance):
         self.jira = jira_instance
 
     def validate(self, document):
+        """ Validate JQL query. """
         text = document.text
         if text.lower() == "b" or text.lower() == "exit":
             return
@@ -284,6 +293,7 @@ def load_config():
 
 
 class JQLPrompt:
+    """ JQL Prompt to interact with JIRA using JQL queries. """
     def __init__(self, jira):
         self.jira: JIRA = jira
         self.console: Console = Console(color_system="truecolor", record=True)
@@ -319,6 +329,10 @@ class JQLPrompt:
         )
 
     def prompt(self) -> Optional[List[Issue]]:
+        """ Prompt the user for a JQL query.
+        Returns:
+            Optional[List[Issue]]: List of JIRA issues.
+        """
         user_input: str = self.session.prompt()
         self.issue_count = 0
         if not user_input:
@@ -346,6 +360,10 @@ class JQLPrompt:
         self.console.print("[!] No issues found.", style="#BF616A bold")
 
     def multi_prompt(self) -> Optional[List[Issue]]:
+        """ Prompt the user for multiple JQL queries.
+        Returns:
+            Optional[List[Issue]]: List of JIRA issues.
+        """
         self.issues = []
         while True:
             try:
@@ -367,6 +385,7 @@ class JQLPrompt:
         self.console.print("[!] No issues added.", style="#BF616A bold")
 
     def save_log(self):
+        """ Save the console log to a file. """
         log_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         with open(f"jql_{log_time}.txt", "w") as log_file:
             log_file.write(self.console.export_text())
