@@ -45,11 +45,21 @@ class ItemManager:
         else:
             print(f"Item with ID {item_id} not found.")
 
-    def search_by_name(self, name: str) -> Optional[Item]:
-        return self.items_by_name.get(name)
+    def remove_item_by_name(self, name: str):
+        if name in self.items_by_name:
+            item_to_remove = self.items_by_name.pop(name)
+            self.ordered_items = [item for item in self.ordered_items if item.name != name]
+            if item_to_remove.id in self.items_by_id:
+                del self.items_by_id[item_to_remove.id]
+            print(f"Item removed: {item_to_remove}")
+        else:
+            print(f"Item with name {name} not found.")
 
     def search_by_id(self, item_id: str) -> Optional[Item]:
         return self.items_by_id.get(item_id)
+
+    def search_by_name(self, name: str) -> Optional[Item]:
+        return self.items_by_name.get(name)
 
     def get_all_items(self) -> List[Item]:
         return self.ordered_items
