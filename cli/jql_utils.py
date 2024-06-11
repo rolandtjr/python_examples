@@ -1,6 +1,7 @@
+from itertools import chain
 import json
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Iterable
 
 from jira import JIRA
 from jira.exceptions import JIRAError
@@ -12,7 +13,8 @@ from prompt_toolkit.shortcuts import confirm
 from prompt_toolkit.styles import Style
 from prompt_toolkit.validation import ValidationError, Validator
 from pygments.lexer import RegexLexer
-from pygments.token import (Error, Keyword, Name, Operator, Punctuation,
+from pygments.token import (Error, Keyword, Name,
+                             Operator, Punctuation,
                             String, Text, Whitespace, _TokenType)
 from rich.console import Console
 from rich.text import Text as RichText
@@ -37,7 +39,7 @@ class JQLLexer(RegexLexer):
             ),
             (
                 r"(?i)\b(?:A|AND|ARE|AS|AT|BE|BUT|BY|FOR|IF|INTO|IT|NO|OF|ON|OR|S|SUCH|T|THAT|THE|THEIR|THEN|"
-                r"THERE|THESE|THEY|THIS|TO|WILL|WITH)\b",
+                r"THERE|THESE|THEY|THIS|TO|WILL|WITH|ORDER BY|ASC|DESC)\b",
                 Keyword,
             ),
             (
@@ -101,6 +103,7 @@ class JQLStyles:
         "Attributes": "#B48EAD",
         "Operators": "#EBCB8B bold",
         "Projects": "#D08770",
+        "Order": "#BF616A bold",
     }
 
 
@@ -137,6 +140,7 @@ completions: Dict[str, List[str]] = {
         "TO",
         "WILL",
         "WITH",
+        "ORDER BY"
     ],
     "Functions": [
         "issueHistory",
@@ -162,6 +166,7 @@ completions: Dict[str, List[str]] = {
         "assignee",
         "affectedVersion",
         "attachments",
+        "category",
         "comment",
         "component",
         "created",
@@ -218,6 +223,10 @@ completions: Dict[str, List[str]] = {
         "ASTRAL",
         "PHOTON",
     ],
+    "Order": [
+        "ASC",
+        "DESC",
+    ],
 }
 
 
@@ -260,23 +269,58 @@ class JQLValidator(Validator):
 class JQLCompleter(Completer):
     """Custom JQL completer to categorize and color completions."""
 
-    def __init__(self, categorized_completions):
+    def __init__(self, categorized_completions: Dict[str, List[str]]):
         self.categorized_completions = categorized_completions
 
-    def get_completions(self, document, complete_event):
-        text = document.get_word_before_cursor().lower()
+    def get_completions(self, document, complete_event) -> Iterable[Completion]:
+        text_before_cursor = document.text_before_cursor.lower().strip()
+        words = text_before_cursor.split()
+
+        if document.text_before_cursor and document.text_before_cursor[-1].isspace():
+            return self._get_next_word_completions(words, text_before_cursor)
+        else:
+            return self._get_current_word_completions(words[-1] if words else '')
+
+    def _get_next_word_completions(self, words: List[str], text_before_cursor: str) -> Iterable[Completion]:
+        if not words:
+            return chain(self._get_category_completions("Attributes"),
+                         self._get_category_completions("Functions"))
+
+        last_word = words[-1]
+
+        if last_word in ["and", "or"]:
+            return chain(self._get_category_completions("Functions"),
+                         self._get_category_completions("Attributes"))
+
+        if last_word in self.categorized_completions.get("Operators", []):
+            return self._get_category_completions("Projects")
+
+        if last_word in ["order", "by"]:
+            return self._get_category_completions("Attributes")
+
+        if "order by" in text_before_cursor:
+            return self._get_category_completions("Order")
+
+        if last_word in self.categorized_completions.get("Attributes", []):
+            return self._get_category_completions("Operators")
+
+        return []
+
+    def _get_current_word_completions(self, word: str) -> Iterable[Completion]:
         for category, words in self.categorized_completions.items():
-            for word in words:
-                if text in word.lower():
-                    display_text = f"{word}"
-                    yield Completion(
-                        word,
-                        start_position=-len(text),
-                        display=display_text,
-                        display_meta=category,
-                        style=f"fg: #D8DEE9 bg: {JQLStyles.completion.get(category, 'white')}",
-                        selected_style=f"fg: {JQLStyles.completion.get(category, 'white')} bg: #D8DEE9",
-                    )
+            for completion_word in words:
+                if word in completion_word.lower():
+                    yield Completion(completion_word,
+                                     start_position=-len(word),
+                                     display=completion_word,
+                                     display_meta=category,
+                                     style=f"fg: #D8DEE9 bg: {JQLStyles.completion.get(category, 'white')}",
+                                     selected_style=f"fg: {JQLStyles.completion.get(category, 'white')} bg: #D8DEE9",
+                                    )
+
+    def _get_category_completions(self, category: str) -> Iterable[Completion]:
+        for word in self.categorized_completions.get(category, []):
+            yield Completion(word, display=word, display_meta=category)
 
 
 def load_config():
