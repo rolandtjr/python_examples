@@ -12,6 +12,7 @@ from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.shortcuts import confirm
 from prompt_toolkit.styles import Style
 from prompt_toolkit.validation import ValidationError, Validator
+from prompt_toolkit.formatted_text import HTML, merge_formatted_text
 from pygments.lexer import RegexLexer
 from pygments.token import (Error, Keyword, Name,
                              Operator, Punctuation,
@@ -351,10 +352,12 @@ class JQLPrompt:
     def get_query_count(self):
         space = self.console.width // 3
         query_count_str = f"Query Count: {self.query_count}" if self.query_count else ""
+        query_count_html = HTML(f"<b><style fg='#2E3440' bg='#88C0D0'>{query_count_str:^{space}}</style></b>")
         issue_count_str = f"Issues Added: {self.issue_count}" if self.issue_count else ""
+        issue_count_html = HTML(f"<b><style fg='#2E3440' bg='#B48EAD'>{issue_count_str:^{space}}</style></b>")
         total_issue_count_str = f"Total Issues: {self.total_issue_count}" if self.total_issue_count else ""
-        plain_text = f"{query_count_str:^{space}}{issue_count_str:^{space}}{total_issue_count_str:^{space}}"
-        return [("bg:#2E3440 #D8DEE9", plain_text)]
+        total_issue_count_html = HTML(f"<b><style fg='#2E3440' bg='#D8DEE9'>{total_issue_count_str:^{space}}</style></b>")
+        return merge_formatted_text([query_count_html, issue_count_html, total_issue_count_html])
 
     def create_jql_prompt_session(self):
         completer: JQLCompleter = JQLCompleter(completions)

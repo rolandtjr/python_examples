@@ -1,3 +1,4 @@
+import pickle
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 from rich.console import Console
@@ -118,6 +119,23 @@ class ItemManager:
 
         console.print(table)
 
+    def save_to_file(self, filename: str):
+        with open(filename, 'wb') as f:
+            pickle.dump(self, f)
+        print(f"ItemManager saved to {filename}")
+
+    @staticmethod
+    def load_from_file(filename: str) -> 'ItemManager':
+        with open(filename, 'rb') as f:
+            item_manager = pickle.load(f)
+        print(f"ItemManager loaded from {filename}")
+        return item_manager
+
+    @classmethod
+    def from_json_list(cls, json_list: List[Dict[str, Any]]):
+        item_manager = cls()
+        item_manager.add_items_from_json_list(json_list)
+        return item_manager
 
 item_manager = ItemManager()
 
@@ -137,3 +155,12 @@ json_list_2 = [
 item_manager.add_items_from_json_list(json_list_2, data_type='old')
 
 item_manager.print_items_as_table()
+
+# Save to file
+item_manager.save_to_file('item_manager.pkl')
+
+# Load from file
+loaded_item_manager = ItemManager.load_from_file('item_manager.pkl')
+
+# Print loaded items as table
+loaded_item_manager.print_items_as_table()
