@@ -8,7 +8,7 @@ class NordColors:
     """
     Defines the Nord color palette as class attributes.
 
-    Each color is labeled by its canonical Nord name (NORD0–NORD15)
+    Each color is labeled by its canonical Nord name (NORD0-NORD15)
     and also has useful aliases grouped by theme:
     - Polar Night
     - Snow Storm
@@ -338,5 +338,5 @@ if __name__ == "__main__":
     # Demonstrate a traceback style:
     try:
         raise ValueError("Nord test exception!")
-    except ValueError as e:
+    except ValueError:
         console.print_exception(show_locals=True)
