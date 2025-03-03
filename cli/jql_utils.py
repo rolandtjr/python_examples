@@ -357,7 +357,8 @@ class JQLPrompt:
         issue_count_html = HTML(f"<b><style fg='#2E3440' bg='#B48EAD'>{issue_count_str:^{space}}</style></b>")
         total_issue_count_str = f"Total Issues: {self.total_issue_count}" if self.total_issue_count else ""
         total_issue_count_html = HTML(f"<b><style fg='#2E3440' bg='#D8DEE9'>{total_issue_count_str:^{space}}</style></b>")
-        return merge_formatted_text([query_count_html, issue_count_html, total_issue_count_html])
+        next_line = HTML(f"<style fg='#2E3440' bg='#88C0D0'>\n{'multiline toolbar':<{self.console.width}}</style>")
+        return merge_formatted_text([query_count_html, issue_count_html, total_issue_count_html, next_line])
 
     def create_jql_prompt_session(self):
         completer: JQLCompleter = JQLCompleter(completions)
