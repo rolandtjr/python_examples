@@ -1,10 +1,110 @@
-from typing import Dict
+"""
+nord_theme.py
+
+A Python module that integrates the Nord color palette with the Rich library.
+It defines a metaclass-based NordColors class allowing dynamic attribute lookups
+(e.g., NORD12bu -> "#D08770 bold underline") and provides a comprehensive Nord-based
+Theme that customizes Rich's default styles.
+
+Features:
+- All core Nord colors (NORD0 through NORD15), plus named aliases (Polar Night,
+  Snow Storm, Frost, Aurora).
+- A dynamic metaclass (NordMeta) that enables usage of 'NORD1b', 'NORD1_biu', etc.
+  to return color + bold/italic/underline/dim/reverse/strike flags for Rich.
+- A ready-to-use Theme (get_nord_theme) mapping Rich's default styles to Nord colors.
+
+Example dynamic usage:
+    console.print("Hello!", style=NordColors.NORD12bu)
+    # => Renders "Hello!" in #D08770 (Nord12) plus bold and underline styles
+"""
+import re
+from difflib import get_close_matches
 
 from rich.style import Style
 from rich.theme import Theme
 from rich.console import Console
 
-class NordColors:
+
+class NordMeta(type):
+    """
+    A metaclass that catches attribute lookups like `NORD12bui` or `ORANGE_b` and returns
+    a string combining the base color + bold/italic/underline/dim/reverse/strike flags.
+    """
+    _STYLE_MAP = {
+        "b": "bold",
+        "i": "italic",
+        "u": "underline",
+        "d": "dim",
+        "r": "reverse",
+        "s": "strike",
+    }
+    _cache = {}
+
+    def __getattr__(cls, name: str) -> str:
+        """
+        Intercepts attributes like 'NORD12b' or 'POLAR_NIGHT_BRIGHT_biu'.
+        Splits into a valid base color attribute (e.g. 'POLAR_NIGHT_BRIGHT') and suffix
+        characters 'b', 'i', 'u', 'd', 'r', 's' which map to 'bold', 'italic', 'underline',
+        'dim', 'reverse', 'strike'.
+        Returns a string Rich can parse: e.g. '#3B4252 bold italic underline'.
+        Raises an informative AttributeError if invalid base or style flags are used.
+        """
+        if name in cls._cache:
+            return cls._cache[name]
+
+        match = re.match(r"([A-Z]+(?:_[A-Z]+)*[0-9]*)(?:_)?([biudrs]*)", name)
+        if not match:
+            raise AttributeError(
+                f"'{cls.__name__}' has no attribute '{name}'.\n"
+                f"Expected format: BASE[_]?FLAGS, where BASE is uppercase letters/underscores/digits, "
+                f"and FLAGS ∈ {{'b', 'i', 'u'}}."
+            )
+
+        base, suffix = match.groups()
+
+        try:
+            color_value = type.__getattribute__(cls, base)
+        except AttributeError:
+            error_msg = [f"'{cls.__name__}' has no color named '{base}'."]
+            valid_bases = [
+                key for key, val in cls.__dict__.items() if isinstance(val, str) and
+                not key.startswith("__")
+            ]
+            suggestions = get_close_matches(base, valid_bases, n=1, cutoff=0.5)
+            if suggestions:
+                error_msg.append(f"Did you mean '{suggestions[0]}'?")
+            if valid_bases:
+                error_msg.append("Valid base color names include: " + ", ".join(valid_bases))
+            raise AttributeError(" ".join(error_msg)) from None
+
+        if not isinstance(color_value, str):
+            raise AttributeError(
+                f"'{cls.__name__}.{base}' is not a string color.\n"
+                f"Make sure that attribute actually contains a color string."
+            )
+
+        unique_flags = set(suffix)
+        styles = []
+        for letter in unique_flags:
+            mapped_style = cls._STYLE_MAP.get(letter)
+            if mapped_style:
+                styles.append(mapped_style)
+            else:
+                raise AttributeError(f"Unknown style flag '{letter}' in attribute '{name}'")
+
+        order = {"b": 1, "i": 2, "u": 3, "d": 4, "r": 5, "s": 6}
+        styles_sorted = sorted(styles, key=lambda s: order[s[0]])
+
+        if styles_sorted:
+            style_string = f"{color_value} {' '.join(styles_sorted)}"
+        else:
+            style_string = color_value
+
+        cls._cache[name] = style_string
+        return style_string
+
+
+class NordColors(metaclass=NordMeta):
     """
     Defines the Nord color palette as class attributes.
 
@@ -59,6 +159,9 @@ class NordColors:
     YELLOW = NORD13
     GREEN = NORD14
     PURPLE = NORD15
+    MAGENTA = NORD15
+    BLUE = NORD10
+    CYAN = NORD8
 
     @classmethod
     def as_dict(cls):
@@ -81,12 +184,13 @@ class NordColors:
         skip_prefixes = ("NORD", "__")
         alias_names = [
             attr for attr in dir(cls)
-            if not any(attr.startswith(sp) for sp in skip_prefixes) 
+            if not any(attr.startswith(sp) for sp in skip_prefixes)
             and not callable(getattr(cls, attr))
         ]
         return {name: getattr(cls, name) for name in alias_names}
 
-NORD_THEME_STYLES: Dict[str, Style] = {
+
+NORD_THEME_STYLES: dict[str, Style] = {
     # ---------------------------------------------------------------
     # Base / Structural styles
     # ---------------------------------------------------------------
@@ -120,12 +224,14 @@ NORD_THEME_STYLES: Dict[str, Style] = {
     # ---------------------------------------------------------------
     # Basic color names mapped to Nord
     # ---------------------------------------------------------------
-    "black": Style(color=NordColors.NORD0),
+    "black": Style(color=NordColors.POLAR_NIGHT_ORIGIN),
     "red": Style(color=NordColors.RED),
     "green": Style(color=NordColors.GREEN),
     "yellow": Style(color=NordColors.YELLOW),
-    "magenta": Style(color=NordColors.PURPLE),
-    "cyan": Style(color=NordColors.FROST_ICE),
+    "magenta": Style(color=NordColors.MAGENTA),
+    "purple": Style(color=NordColors.PURPLE),
+    "cyan": Style(color=NordColors.CYAN),
+    "blue": Style(color=NordColors.BLUE),
     "white": Style(color=NordColors.SNOW_STORM_BRIGHTEST),
 
     # ---------------------------------------------------------------
@@ -259,7 +365,7 @@ NORD_THEME_STYLES: Dict[str, Style] = {
     # ---------------------------------------------------------------
     # Progress bars
     # ---------------------------------------------------------------
-    "bar.back": Style(color=NordColors.NORD3),
+    "bar.back": Style(color=NordColors.POLAR_NIGHT_BRIGHTEST),
     "bar.complete": Style(color=NordColors.RED),
     "bar.finished": Style(color=NordColors.GREEN),
     "bar.pulse": Style(color=NordColors.RED),
@@ -288,8 +394,8 @@ NORD_THEME_STYLES: Dict[str, Style] = {
     "markdown.em": Style(italic=True),
     "markdown.emph": Style(italic=True),  # For commonmark compatibility
     "markdown.strong": Style(bold=True),
-    "markdown.code": Style(bold=True, color=NordColors.FROST_ICE, bgcolor=NordColors.NORD0),
-    "markdown.code_block": Style(color=NordColors.FROST_ICE, bgcolor=NordColors.NORD0),
+    "markdown.code": Style(bold=True, color=NordColors.FROST_ICE, bgcolor=NordColors.POLAR_NIGHT_ORIGIN),
+    "markdown.code_block": Style(color=NordColors.FROST_ICE, bgcolor=NordColors.POLAR_NIGHT_ORIGIN),
     "markdown.block_quote": Style(color=NordColors.PURPLE),
     "markdown.list": Style(color=NordColors.FROST_ICE),
     "markdown.item": Style(),
@@ -316,6 +422,7 @@ NORD_THEME_STYLES: Dict[str, Style] = {
     "iso8601.timezone": Style(color=NordColors.YELLOW),
 }
 
+
 def get_nord_theme() -> Theme:
     """
     Returns a Rich Theme for the Nord color palette.
@@ -326,17 +433,37 @@ def get_nord_theme() -> Theme:
 if __name__ == "__main__":
     console = Console(theme=get_nord_theme(), color_system="truecolor")
 
-    console.print("This is default text (no style).")
-    console.print("This is [red]red[/].")
-    console.print("This is [green]green[/].")
-    console.print("This is [blue]blue[/] (maps to Frost).")
-    console.print("[bold]Bold text[/] and [italic]italic text[/]")
+    # Basic demonstration of the Nord theme
+    console.print("Welcome to the [bold underline]Nord Themed[/] console!\n")
 
-    console.log("Log sample in info mode.")
-    console.log("Another log", style="logging.level.warning")
+    console.print("1) This is default text (no style).")
+    console.print("2) This is [red]red[/].")
+    console.print("3) This is [green]green[/].")
+    console.print("4) This is [blue]blue[/] (maps to Frost).")
+    console.print("5) And here's some [bold]Bold text[/] and [italic]italic text[/].\n")
+
+    console.log("Log example in info mode.")
+    console.log("Another log, with a custom style", style="logging.level.warning")
+
+    # Demonstrate the dynamic attribute usage
+    console.print(
+        "6) Demonstrating dynamic attribute [NORD3bu]: This text should be bold, underlined, "
+        "and use Nord3's color (#4C566A).",
+        style=NordColors.NORD3bu,
+    )
+    console.print()
+
+    # Show how the custom attribute can fail gracefully
+    try:
+        console.print("7) Attempting invalid suffix [NORD3z]:", style=NordColors.NORD3z)
+    except AttributeError as error:
+        console.print(f"Caught error: {error}", style="red")
 
     # Demonstrate a traceback style:
+    console.print("\n8) Raising and displaying a traceback with Nord styling:\n", style="bold")
     try:
         raise ValueError("Nord test exception!")
     except ValueError:
         console.print_exception(show_locals=True)
+
+    console.print("\nEnd of Nord theme demo!", style="bold")
