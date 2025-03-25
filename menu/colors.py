@@ -1,5 +1,5 @@
 """
-nord_theme.py
+colors.py
 
 A Python module that integrates the Nord color palette with the Rich library.
 It defines a metaclass-based NordColors class allowing dynamic attribute lookups
@@ -9,7 +9,7 @@ Theme that customizes Rich's default styles.
 Features:
 - All core Nord colors (NORD0 through NORD15), plus named aliases (Polar Night,
   Snow Storm, Frost, Aurora).
-- A dynamic metaclass (NordMeta) that enables usage of 'NORD1b', 'NORD1_biu', etc.
+- A dynamic metaclass (NordMeta) that enables usage of 'NORD1b', 'NORD1_biudrs', etc.
   to return color + bold/italic/underline/dim/reverse/strike flags for Rich.
 - A ready-to-use Theme (get_nord_theme) mapping Rich's default styles to Nord colors.
 
@@ -25,9 +25,9 @@ from rich.theme import Theme
 from rich.console import Console
 
 
-class NordMeta(type):
+class ColorsMeta(type):
     """
-    A metaclass that catches attribute lookups like `NORD12bui` or `ORANGE_b` and returns
+    A metaclass that catches attribute lookups like `NORD12buidrs` or `ORANGE_b` and returns
     a string combining the base color + bold/italic/underline/dim/reverse/strike flags.
     """
     _STYLE_MAP = {
@@ -38,7 +38,7 @@ class NordMeta(type):
         "r": "reverse",
         "s": "strike",
     }
-    _cache = {}
+    _cache: dict = {}
 
     def __getattr__(cls, name: str) -> str:
         """
@@ -57,7 +57,7 @@ class NordMeta(type):
             raise AttributeError(
                 f"'{cls.__name__}' has no attribute '{name}'.\n"
                 f"Expected format: BASE[_]?FLAGS, where BASE is uppercase letters/underscores/digits, "
-                f"and FLAGS ∈ {{'b', 'i', 'u'}}."
+                f"and FLAGS ∈ {{'b', 'i', 'u', 'd', 'r', 's'}}."
             )
 
         base, suffix = match.groups()
@@ -104,7 +104,35 @@ class NordMeta(type):
         return style_string
 
 
-class NordColors(metaclass=NordMeta):
+class OneColors(metaclass=ColorsMeta):
+    BLACK = "#282C34"
+    GUTTER_GREY = "#4B5263"
+    COMMENT_GREY = "#5C6370"
+    WHITE = "#ABB2BF"
+    DARK_RED = "#BE5046"
+    LIGHT_RED = "#E06C75"
+    DARK_YELLOW = "#D19A66"
+    LIGHT_YELLOW = "#E5C07B"
+    GREEN = "#98C379"
+    CYAN = "#56B6C2"
+    BLUE = "#61AFEF"
+    MAGENTA = "#C678DD"
+
+
+    @classmethod
+    def as_dict(cls):
+        """
+        Returns a dictionary mapping every NORD* attribute
+        (e.g. 'NORD0') to its hex code.
+        """
+        return {
+            attr: getattr(cls, attr)
+            for attr in dir(cls)
+            if not callable(getattr(cls, attr)) and
+            not attr.startswith("__")
+        }
+
+class NordColors(metaclass=ColorsMeta):
     """
     Defines the Nord color palette as class attributes.
 
@@ -172,7 +200,8 @@ class NordColors(metaclass=NordMeta):
         return {
             attr: getattr(cls, attr)
             for attr in dir(cls)
-            if attr.startswith("NORD") and not callable(getattr(cls, attr))
+            if attr.startswith("NORD") and
+            not callable(getattr(cls, attr))
         }
 
     @classmethod
