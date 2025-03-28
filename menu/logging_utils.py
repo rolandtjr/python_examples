@@ -8,7 +8,7 @@ def setup_logging(
 ):
     """Set up logging configuration with separate console and file handlers."""
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.WARNING)
+    root_logger.setLevel(logging.DEBUG)
 
     if root_logger.hasHandlers():
         root_logger.handlers.clear()

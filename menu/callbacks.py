@@ -11,7 +11,7 @@ console = Console()
 setup_logging()
 logger = logging.getLogger("menu")
 
-def retry(max_retries=3, delay=1, backoff=2, exceptions=(Exception,), logger=None, spinner_text=None):
+def retry(max_retries=3, delay=1, backoff=2, exceptions=(Exception,)):
     def decorator(func):
         is_coroutine = inspect.iscoroutinefunction(func)
 
@@ -22,8 +22,7 @@ def retry(max_retries=3, delay=1, backoff=2, exceptions=(Exception,), logger=Non
                 if logger:
                     logger.debug(f"Retrying {retries + 1}/{max_retries} for '{func.__name__}' after {current_delay}s due to '{exceptions}'.")
                 try:
-                    with console.status(spinner_text, spinner="dots"):
-                        return await func(*args, **kwargs)
+                    return await func(*args, **kwargs)
                 except exceptions as e:
                     if retries == max_retries:
                         if logger:
@@ -44,8 +43,7 @@ def retry(max_retries=3, delay=1, backoff=2, exceptions=(Exception,), logger=Non
                 if logger:
                     logger.debug(f"Retrying {retries + 1}/{max_retries} for '{func.__name__}' after {current_delay}s due to '{exceptions}'.")
                 try:
-                    with console.status(spinner_text, spinner="dots"):
-                        return func(*args, **kwargs)
+                    return func(*args, **kwargs)
                 except exceptions as e:
                     if retries == max_retries:
                         if logger:
@@ -62,7 +60,7 @@ def retry(max_retries=3, delay=1, backoff=2, exceptions=(Exception,), logger=Non
         return async_wrapper if is_coroutine else sync_wrapper
     return decorator
 
-@retry(max_retries=10, delay=1, logger=logger, spinner_text="Trying risky thing...")
+@retry(max_retries=10, delay=1, spinner_text="Trying risky thing...")
 def might_fail():
     time.sleep(4)
     if random.random() < 0.6:

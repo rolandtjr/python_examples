@@ -1,41 +1,40 @@
-import time
+import functools
 import logging
 import random
-import functools
-from menu import Menu, Option
+import time
+
+from hook_manager import HookContext
+from menu_utils import run_async
 
 logger = logging.getLogger("menu")
 
-def timing_before_hook(option: Option) -> None:
-    option._start_time = time.perf_counter()
 
-
-def timing_after_hook(option: Option) -> None:
-    option._end_time = time.perf_counter()
-    option._duration = option._end_time - option._start_time
-
-
-def timing_error_hook(option: Option, _: Exception) -> None:
-    option._end_time = time.perf_counter()
-    option._duration = option._end_time - option._start_time
-
-
-def log_before(option: Option) -> None:
-    logger.info(f"🚀 Starting action '{option.description}' (key='{option.key}')")
-
-
-def log_after(option: Option) -> None:
-    if option._duration is not None:
-        logger.info(f"✅ Completed '{option.description}' (key='{option.key}') in {option._duration:.2f}s")
+def log_before(context: dict) -> None:
+    name = context.get("name", "<unnamed>")
+    option = context.get("option")
+    if option:
+        logger.info(f"🚀 Starting action '{option.description}' (key='{option.key}')")
     else:
-        logger.info(f"✅ Completed '{option.description}' (key='{option.key}')")
+        logger.info(f"🚀 Starting action '{name}'")
 
 
-def log_error(option: Option, error: Exception) -> None:
-    if option._duration is not None:
-        logger.error(f"❌ Error '{option.description}' (key='{option.key}') after {option._duration:.2f}s: {error}")
+def log_after(context: dict) -> None:
+    name = context.get("name", "<unnamed>")
+    duration = context.get("duration")
+    if duration is not None:
+        logger.info(f"✅ Completed '{name}' in {duration:.2f}s")
     else:
-        logger.error(f"❌ Error '{option.description}' (key='{option.key}'): {error}")
+        logger.info(f"✅ Completed '{name}'")
+
+
+def log_error(context: dict) -> None:
+    name = context.get("name", "<unnamed>")
+    error = context.get("exception")
+    duration = context.get("duration")
+    if duration is not None:
+        logger.error(f"❌ Error '{name}' after {duration:.2f}s: {error}")
+    else:
+        logger.error(f"❌ Error '{name}': {error}")
 
 
 class CircuitBreakerOpen(Exception):
@@ -49,23 +48,25 @@ class CircuitBreaker:
         self.failures = 0
         self.open_until = None
 
-    def before_hook(self, option: Option):
+    def before_hook(self, context: HookContext):
+        name = context.get("name", "<unnamed>")
         if self.open_until:
             if time.time() < self.open_until:
-                raise CircuitBreakerOpen(f"🔴 Circuit open for '{option.description}' until {time.ctime(self.open_until)}.")
+                raise CircuitBreakerOpen(f"🔴 Circuit open for '{name}' until {time.ctime(self.open_until)}.")
             else:
-                logger.info(f"🟢 Circuit closed again for '{option.description}'.")
+                logger.info(f"🟢 Circuit closed again for '{name}'.")
                 self.failures = 0
                 self.open_until = None
 
-    def error_hook(self, option: Option, error: Exception):
+    def error_hook(self, context: HookContext):
+        name = context.get("name", "<unnamed>")
         self.failures += 1
-        logger.warning(f"⚠️ CircuitBreaker: '{option.description}' failure {self.failures}/{self.max_failures}.")
+        logger.warning(f"⚠️ CircuitBreaker: '{name}' failure {self.failures}/{self.max_failures}.")
         if self.failures >= self.max_failures:
             self.open_until = time.time() + self.reset_timeout
-            logger.error(f"🔴 Circuit opened for '{option.description}' until {time.ctime(self.open_until)}.")
+            logger.error(f"🔴 Circuit opened for '{name}' until {time.ctime(self.open_until)}.")
 
-    def after_hook(self, option: Option):
+    def after_hook(self, context: HookContext):
         self.failures = 0
 
     def is_open(self):
@@ -78,33 +79,52 @@ class CircuitBreaker:
 
 
 class RetryHandler:
-    def __init__(self, max_retries=2, delay=1, backoff=2):
+    def __init__(self, max_retries=5, delay=1, backoff=2):
         self.max_retries = max_retries
         self.delay = delay
         self.backoff = backoff
 
-    def retry_on_error(self, option: Option, error: Exception):
+    def retry_on_error(self, context: HookContext):
+        name = context.get("name", "<unnamed>")
+        error = context.get("exception")
+        option = context.get("option")
+        action = context.get("action")
+
         retries_done = 0
         current_delay = self.delay
         last_error = error
 
+        if not (option or action):
+            logger.warning(f"⚠️ RetryHandler: No Option or Action in context for '{name}'. Skipping retry.")
+            return
+
+        target = option or action
+
         while retries_done < self.max_retries:
             try:
                 retries_done += 1
-                logger.info(f"🔄 Retrying '{option.description}' ({retries_done}/{self.max_retries}) in {current_delay}s due to '{error}'...")
+                logger.info(f"🔄 Retrying '{name}' ({retries_done}/{self.max_retries}) in {current_delay}s due to '{last_error}'...")
                 time.sleep(current_delay)
-                result = option.action()
-                print(result)
-                option.set_result(result)
-                logger.info(f"✅ Retry succeeded for '{option.description}' on attempt {retries_done}.")
-                option.after_action.run_hooks(option)
+                result = target(*context.get("args", ()), **context.get("kwargs", {}))
+                if option:
+                    option.set_result(result)
+
+                context["result"] = result
+                context["duration"] = target.get_duration() or 0.0
+                context.pop("exception", None)
+
+                logger.info(f"✅ Retry succeeded for '{name}' on attempt {retries_done}.")
+
+                if hasattr(target, "hooks"):
+                    run_async(target.hooks.trigger("after", context))
+
                 return
             except Exception as retry_error:
-                logger.warning(f"⚠️ Retry attempt {retries_done} for '{option.description}' failed due to '{retry_error}'.")
+                logger.warning(f"⚠️ Retry attempt {retries_done} for '{name}' failed due to '{retry_error}'.")
                 last_error = retry_error
                 current_delay *= self.backoff
 
-        logger.exception(f"❌ '{option.description}' failed after {self.max_retries} retries.")
+        logger.exception(f"❌ '{name}' failed after {self.max_retries} retries.")
         raise last_error
 
 
@@ -133,15 +153,13 @@ def retry(max_retries=3, delay=1, backoff=2, exceptions=(Exception,), logger=Non
 
 
 def setup_hooks(menu):
-    menu.add_before(timing_before_hook)
-    menu.add_after(timing_after_hook)
-    menu.add_on_error(timing_error_hook)
     menu.add_before(log_before)
     menu.add_after(log_after)
     menu.add_on_error(log_error)
 
 
 if __name__ == "__main__":
+    from menu import Menu
     def risky_task():
         if random.random() > 0.1:
             time.sleep(1)
@@ -151,9 +169,6 @@ if __name__ == "__main__":
     retry_handler = RetryHandler(max_retries=30, delay=2, backoff=2)
 
     menu = Menu(never_confirm=True)
-    menu.add_before(timing_before_hook)
-    menu.add_after(timing_after_hook)
-    menu.add_on_error(timing_error_hook)
     menu.add_before(log_before)
     menu.add_after(log_after)
     menu.add_on_error(log_error)
