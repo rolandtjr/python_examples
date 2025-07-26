@@ -40,6 +40,30 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable
 
+from jira import Issue
+from jira.resources import CustomFieldOption, User
+
+
+class DeploymentRequirements(Enum):
+    """Checklist of deployment requirements for the Jira 'Deployment Requirements' multi-select field."""
+    CODE_REVIEW_COMPLETED = "Code Review Completed"
+    UNIT_TESTS_PASSED = "Unit Tests Passed"
+    QA_SIGN_OFF = "QA Sign-off"
+    DOCUMENTATION_UPDATED = "Documentation Updated"
+    SECURITY_SCAN_APPROVED = "Security Scan Approved"
+    CHANGE_MANAGEMENT_TICKET_LINKED = "Change Management Ticket Linked"
+
+
+class ReleaseTrain(Enum):
+    """Valid release train options for the Jira 'Release Train' single-select field."""
+    ALPHA_TRAIN = "Alpha Train"
+    BETA_TRAIN = "Beta Train"
+    GAMMA_TRAIN = "Gamma Train"
+    STABLE_TRAIN = "Stable Train"
+
+    def __str__(self):
+        return self.value
+
 
 class FieldType(Enum):
     """
@@ -68,9 +92,13 @@ class FieldType(Enum):
     LABELS = "labels"
 
 def single_select_formatter(value: Any):
+    if isinstance(value, Enum):
+        return {"value": value.value}
     return {"value": value}
 
 def multi_select_formatter(values: Any):
+    if all(isinstance(v, Enum) for v in values):
+        return [{"value": v.value} for v in values]
     return [{"value": value} for value in (values if isinstance(values, list) else [values])]
 
 def user_formatter(value: Any):
@@ -88,6 +116,35 @@ FIELD_FORMATTERS = {
     FieldType.GROUP: user_formatter,   # same shape as USER on Server/DC
     FieldType.DATE: lambda v: v,       # could later enforce ISO 8601
     FieldType.LABELS: labels_formatter,
+}
+
+
+def get_single_select_formatter(value: CustomFieldOption) -> str:
+    if not isinstance(value, CustomFieldOption):
+        raise ValueError(f"Expected CustomFieldOption, got {type(value)}")
+    return value.value
+
+
+def get_multi_select_formatter(values: list[CustomFieldOption]) -> list[str]:
+    if not isinstance(values, list):
+        raise ValueError(f"Expected list of CustomFieldOption, got {type(values)}")
+    if not all(isinstance(v, CustomFieldOption) for v in values):
+        raise ValueError("All items in the list must be CustomFieldOption instances")
+    return [get_single_select_formatter(v) for v in values]
+
+
+def get_user_formatter(user: User) -> dict:
+    if not isinstance(user, User):
+        raise ValueError(f"Expected User, got {type(user)}")
+    return user.name
+
+
+GET_FIELD_FORMATTERS = {
+    FieldType.TEXT: lambda v: v,
+    FieldType.SINGLE_SELECT: get_single_select_formatter,
+    FieldType.MULTI_SELECT: get_multi_select_formatter,
+    FieldType.USER: get_user_formatter,
+    FieldType.LABELS: lambda v: v,
 }
 
 
@@ -154,6 +211,10 @@ class JiraFieldInfo:
     def formatter(self) -> Callable[[Any], Any]:
         return FIELD_FORMATTERS[self.field_type]
 
+    @property
+    def get_field_formatter(self) -> Callable[[Any], Any]:
+        return GET_FIELD_FORMATTERS[self.field_type]
+
 
 FIELD_REGISTRY = {
     JiraFields.RELEASE_TRAIN: JiraFieldInfo(
@@ -169,6 +230,34 @@ FIELD_REGISTRY = {
         field_type=FieldType.USER,
     ),
 }
+
+
+def get_field(issue: Issue, name: JiraFields) -> JiraFieldInfo:
+    """
+    Retrieve a field from a Jira issue and format it according to FieldType.
+
+    Args:
+        issue (Issue): Jira issue instance (from jira-python).
+        name (JiraFields): Logical Jira field enum member.
+
+    Returns:
+        Any: The formatted field data (e.g. str, list, dict) appropriate to the type.
+
+    Raises:
+        ValueError: If the field name is not a valid JiraFields enum member
+        AttributeError: If the issue does not have the field
+    """
+    if not isinstance(name, JiraFields):
+        raise ValueError(f"Expected JiraFields enum, got {type(name)}")
+    try:
+        info = FIELD_REGISTRY[name]
+    except KeyError:
+        raise ValueError(f"Field {name} is not registered in FIELD_REGISTRY")
+    try:
+        data = getattr(issue.fields, info.field_id)
+    except AttributeError:
+        raise ValueError(f"Issue does not have field {name} ({FIELD_REGISTRY[name].field_id})")
+    return info.get_field_formatter(data)
 
 
 class UpdateFields:
