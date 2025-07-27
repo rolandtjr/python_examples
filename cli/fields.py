@@ -36,16 +36,19 @@ Notes:
 This design centralizes all field formatting rules and mappings, making Jira
 updates cleaner, safer, and easier to maintain.
 """
+
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable
 
+from dateutil import parser
 from jira import Issue
-from jira.resources import CustomFieldOption, User
+from jira.resources import CustomFieldOption, User, Resource
 
 
 class DeploymentRequirements(Enum):
     """Checklist of deployment requirements for the Jira 'Deployment Requirements' multi-select field."""
+
     CODE_REVIEW_COMPLETED = "Code Review Completed"
     UNIT_TESTS_PASSED = "Unit Tests Passed"
     QA_SIGN_OFF = "QA Sign-off"
@@ -56,6 +59,7 @@ class DeploymentRequirements(Enum):
 
 class ReleaseTrain(Enum):
     """Valid release train options for the Jira 'Release Train' single-select field."""
+
     ALPHA_TRAIN = "Alpha Train"
     BETA_TRAIN = "Beta Train"
     GAMMA_TRAIN = "Gamma Train"
@@ -83,6 +87,7 @@ class FieldType(Enum):
         DATE: A date field, expected in ISO-8601 string format (e.g., "2025-07-26").
         LABELS: A label field, sent as a list of strings.
     """
+
     TEXT = "text"
     SINGLE_SELECT = "single_select"
     MULTI_SELECT = "multi_select"
@@ -90,32 +95,50 @@ class FieldType(Enum):
     GROUP = "group"
     DATE = "date"
     LABELS = "labels"
+    ENTITY = "entity"
 
-def single_select_formatter(value: Any):
+
+def single_select_formatter(value: Any) -> dict[str, str]:
     if isinstance(value, Enum):
         return {"value": value.value}
     return {"value": value}
 
-def multi_select_formatter(values: Any):
+
+def multi_select_formatter(values: Any) -> list[dict[str, str]]:
     if all(isinstance(v, Enum) for v in values):
         return [{"value": v.value} for v in values]
-    return [{"value": value} for value in (values if isinstance(values, list) else [values])]
+    return [
+        {"value": value} for value in (values if isinstance(values, list) else [values])
+    ]
 
-def user_formatter(value: Any):
+
+def user_formatter(value: Any) -> dict[str, str]:
     return {"name": value}
 
-def labels_formatter(value: Any):
+
+def labels_formatter(value: Any) -> list[str]:
     return value if isinstance(value, list) else [value]
 
 
-FIELD_FORMATTERS = {
+def entity_formatter(value: Any) -> dict[str, str]:
+    """Format entity fields like issuetype/status when updating."""
+    # allow passing either an Enum, str, or id dict
+    if isinstance(value, Enum):
+        return {"name": value.value}
+    if isinstance(value, dict) and ("name" in value or "id" in value):
+        return value
+    return {"name": value}
+
+
+FIELD_FORMATTERS: dict[FieldType, Callable[..., Any]] = {
     FieldType.TEXT: lambda v: v,
     FieldType.SINGLE_SELECT: single_select_formatter,
     FieldType.MULTI_SELECT: multi_select_formatter,
     FieldType.USER: user_formatter,
-    FieldType.GROUP: user_formatter,   # same shape as USER on Server/DC
-    FieldType.DATE: lambda v: v,       # could later enforce ISO 8601
+    FieldType.GROUP: user_formatter,  # same shape as USER on Server/DC
+    FieldType.DATE: lambda v: v,  # could later enforce ISO 8601
     FieldType.LABELS: labels_formatter,
+    FieldType.ENTITY: entity_formatter,
 }
 
 
@@ -139,12 +162,29 @@ def get_user_formatter(user: User) -> dict:
     return user.name
 
 
-GET_FIELD_FORMATTERS = {
+def get_date_formatter(date_str: str) -> str:
+    try:
+        return parser.parse(date_str)
+    except ValueError as e:
+        raise ValueError(f"Invalid date format: {date_str}") from e
+
+
+def get_entity_formatter(value: Resource) -> str:
+    """Extract the 'name' from an entity field (issuetype, status)."""
+    if not isinstance(value, Resource):
+        raise ValueError(f"Expected Resource for ENTITY field, got {type(value)}")
+    return value.name
+
+
+GET_FIELD_FORMATTERS: dict[FieldType, Callable[..., Any]] = {
     FieldType.TEXT: lambda v: v,
     FieldType.SINGLE_SELECT: get_single_select_formatter,
     FieldType.MULTI_SELECT: get_multi_select_formatter,
     FieldType.USER: get_user_formatter,
     FieldType.LABELS: lambda v: v,
+    FieldType.DATE: get_date_formatter,
+    FieldType.GROUP: get_user_formatter,
+    FieldType.ENTITY: get_entity_formatter,
 }
 
 
@@ -165,9 +205,16 @@ class JiraFields(Enum):
         through the FIELD_REGISTRY, which is the single source of truth
         for how each field is formatted and sent to Jira.
     """
+
     REPORTER = "reporter"
     RELEASE_TRAIN = "release_train"
     DEPLOYMENT_REQUIREMENTS = "deployment_requirements"
+    CREATED = "created"
+    UPDATED = "updated"
+    STATUS = "status"
+    ISSUETYPE = "issuetype"
+    PROJECT = "project"
+    PRIORITY = "priority"
 
     def __str__(self):
         return self.value
@@ -196,7 +243,7 @@ class JiraFieldInfo:
             how its value should be formatted.
 
     Properties:
-        formatter (Callable[[Any], Any]): Returns the correct formatter
+        formatter (Callable[..., Any]): Returns the correct formatter
             function for the field_type, so values are automatically
             wrapped or structured as required by the Jira API.
 
@@ -204,15 +251,16 @@ class JiraFieldInfo:
         >>> FIELD_REGISTRY[JiraFields.RELEASE_TRAIN].formatter("Beta Train")
         {"value": "Beta Train"}
     """
+
     field_id: str
     field_type: FieldType
 
     @property
-    def formatter(self) -> Callable[[Any], Any]:
+    def formatter(self) -> Callable[..., Any]:
         return FIELD_FORMATTERS[self.field_type]
 
     @property
-    def get_field_formatter(self) -> Callable[[Any], Any]:
+    def get_field_formatter(self) -> Callable[..., Any]:
         return GET_FIELD_FORMATTERS[self.field_type]
 
 
@@ -228,6 +276,30 @@ FIELD_REGISTRY = {
     JiraFields.REPORTER: JiraFieldInfo(
         field_id="reporter",
         field_type=FieldType.USER,
+    ),
+    JiraFields.CREATED: JiraFieldInfo(
+        field_id="created",
+        field_type=FieldType.DATE,
+    ),
+    JiraFields.UPDATED: JiraFieldInfo(
+        field_id="updated",
+        field_type=FieldType.DATE,
+    ),
+    JiraFields.STATUS: JiraFieldInfo(
+        field_id="status",
+        field_type=FieldType.ENTITY,
+    ),
+    JiraFields.ISSUETYPE: JiraFieldInfo(
+        field_id="issuetype",
+        field_type=FieldType.ENTITY,
+    ),
+    JiraFields.PROJECT: JiraFieldInfo(
+        field_id="project",
+        field_type=FieldType.ENTITY,
+    ),
+    JiraFields.PRIORITY: JiraFieldInfo(
+        field_id="priority",
+        field_type=FieldType.ENTITY,
     ),
 }
 
@@ -256,7 +328,9 @@ def get_field(issue: Issue, name: JiraFields) -> JiraFieldInfo:
     try:
         data = getattr(issue.fields, info.field_id)
     except AttributeError:
-        raise ValueError(f"Issue does not have field {name} ({FIELD_REGISTRY[name].field_id})")
+        raise ValueError(
+            f"Issue does not have field {name} ({FIELD_REGISTRY[name].field_id})"
+        )
     return info.get_field_formatter(data)
 
 
@@ -288,6 +362,7 @@ class UpdateFields:
         >>> update_fields.add_field(JiraFields.REPORTER, "jdoe")
         >>> jira.issue("AETHER-1").update(fields=update_fields.as_dict())
     """
+
     def __init__(self):
         self.fields = {}
 
